@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Управление пользователями - Склад бытовой техники{% endblock %}
+
+{% block page_title %}Управление пользователями{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Назад
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Все пользователи системы</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Логин</th>
+                        <th>Имя</th>
+                        <th>Email</th>
+                        <th>Роль</th>
+                        <th>Статус</th>
+                        <th>Дата регистрации</th>
+                        <th>Последний вход</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td><strong>{{ user.username }}</strong></td>
+                        <td>{{ user.full_name or '-' }}</td>
+                        <td>{{ user.email or '-' }}</td>
+                        <td>
+                            {% if user.role == 'admin' %}
+                            <span class="badge bg-danger">Администратор</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Кладовщик</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.is_active %}
+                            <span class="badge bg-success">Активен</span>
+                            {% else %}
+                            <span class="badge bg-danger">Неактивен</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        <td>
+                            {% if user.last_login %}
+                            {{ user.last_login.strftime('%d.%m.%Y %H:%M') }}
+                            {% else %}
+                            <span class="text-muted">Никогда</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                {% if user.id != current_user.user.id %}
+                                <form method="POST" action="{{ url_for('admin.toggle_user', user_id=user.id) }}" 
+                                      style="display: inline;">
+                                    {% if user.is_active %}
+                                    <button type="submit" class="btn btn-outline-warning" 
+                                            onclick="return confirm('Деактивировать пользователя {{ user.username }}?')">
+                                        <i class="bi bi-person-x"></i>
+                                    </button>
+                                    {% else %}
+                                    <button type="submit" class="btn btn-outline-success" 
+                                            onclick="return confirm('Активировать пользователя {{ user.username }}?')">
+                                        <i class="bi bi-person-check"></i>
+                                    </button>
+                                    {% endif %}
+                                </form>
+                                
+                                <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id) }}" 
+                                      style="display: inline;">
+                                    <button type="submit" class="btn btn-outline-danger" 
+                                            onclick="return confirm('Удалить пользователя {{ user.username }}?')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="text-muted">Это вы</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Форма создания нового пользователя -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">Создать нового пользователя</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.create_user') }}">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Логин *</label>
+                            <input type="text" class="form-control" name="username" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Пароль *</label>
+                            <input type="password" class="form-control" name="password" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Имя</label>
+                            <input type="text" class="form-control" name="full_name">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Роль</label>
+                            <select class="form-select" name="role">
+                                <option value="storekeeper">Кладовщик</option>
+                                <option value="admin">Администратор</option>
+                            </select>
+                        </div>
+                        <div class="col-md-9 mb-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-person-plus"></i> Создать пользователя
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

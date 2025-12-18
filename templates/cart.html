@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}Корзина - Склад бытовой техники{% endblock %}
+
+{% block page_title %}Корзина заказов{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-success" onclick="createOrderFromCart()" id="create-order-btn" disabled>
+    <i class="bi bi-receipt"></i> Создать накладную
+</button>
+<button class="btn btn-outline-danger" onclick="clearCart()" id="clear-cart-btn" disabled>
+    <i class="bi bi-trash"></i> Очистить корзину
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Товары в корзине</h5>
+            </div>
+            <div class="card-body">
+                <div id="cart-items-container">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <h5 class="mb-0">Итог</h5>
+            </div>
+            <div class="card-body">
+                <div id="cart-summary">
+                    <div class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="order-notes" class="form-label">Примечание к накладной:</label>
+                    <textarea class="form-control" id="order-notes" rows="3" 
+                              placeholder="Дополнительная информация..."></textarea>
+                </div>
+                
+                <button class="btn btn-success w-100 py-2 mb-2" onclick="createOrderFromCart()" 
+                        id="create-order-btn-bottom" disabled>
+                    <i class="bi bi-receipt"></i> Создать накладную
+                </button>
+                
+                <button class="btn btn-outline-danger w-100 py-2" onclick="clearCart()" 
+                        id="clear-cart-btn-bottom" disabled>
+                    <i class="bi bi-trash"></i> Очистить корзину
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Загрузка корзины
+async function loadCartPage() {
+    try {
+        const cartData = await callApi('get_cart');
+        displayCartItems(cartData);
+        displayCartSummary(cartData);
+        
+        // Обновляем состояние кнопок
+        const hasItems = cartData.items && cartData.items.length > 0;
+        document.getElementById('create-order-btn').disabled = !hasItems;
+        document.getElementById('clear-cart-btn').disabled = !hasItems;
+        document.getElementById('create-order-btn-bottom').disabled = !hasItems;
+        document.getElementById('clear-cart-btn-bottom').disabled = !hasItems;
+        
+    } catch (error) {
+        console.error('Error loading cart:', error);
+        showToast('Ошибка при загрузке корзины', 'danger');
+    }
+}
+
+// Отображение товаров в корзине
+function displayCartItems(cartData) {
+    const container = document.getElementById('cart-items-container');
+    
+    if (!cartData.items || cartData.items.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-cart display-1 text-muted mb-3"></i>
+                <h4>Корзина пуста</h4>
+                <p class="text-muted">Добавьте товары из списка товаров</p>
+                <a href="/products" class="btn btn-primary">
+                    <i class="bi bi-box-seam"></i> Перейти к товарам
+                </a>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div class="list-group">';
+    
+    cartData.items.forEach(item => {
+        const canOrder = item.can_order;
+        html += `
+            <div class="list-group-item ${!canOrder ? 'bg-light' : ''}">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h6 class="mb-1">${item.name}</h6>
+                        <small class="text-muted">Артикул: ${item.article}</small>
+                        <div class="mt-1">
+                            <span class="badge ${canOrder ? 'bg-info' : 'bg-warning'}">
+                                ${item.unit_price.toFixed(2)} ₽ / шт
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="input-group input-group-sm">
+                            <button class="btn btn-outline-secondary" type="button" 
+                                    onclick="updateCartItemQuantity(${item.product_id}, ${item.quantity - 1})"
+                                    ${item.quantity <= 1 ? 'disabled' : ''}>
+                                <i class="bi bi-dash"></i>
+                            </button>
+                            <input type="number" class="form-control text-center" 
+                                   value="${item.quantity}" min="1" max="${item.available}"
+                                   id="quantity-${item.product_id}"
+                                   onchange="updateCartItemQuantity(${item.product_id}, this.value)">
+                            <button class="btn btn-outline-secondary" type="button" 
+                                    onclick="updateCartItemQuantity(${item.product_id}, ${item.quantity + 1})"
+                                    ${item.quantity >= item.available ? 'disabled' : ''}>
+                                <i class="bi bi-plus"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted">Доступно: ${item.available} шт</small>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <h6 class="mb-0">${(item.item_total).toFixed(2)} ₽</h6>
+                        <button class="btn btn-sm btn-outline-danger mt-2" 
+                                onclick="removeFromCart(${item.product_id}, '${item.name.replace(/'/g, "\\'")}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                ${!canOrder ? `
+                <div class="alert alert-warning mt-2 mb-0 py-1">
+                    <i class="bi bi-exclamation-triangle"></i> Недостаточно товара на складе
+                </div>
+                ` : ''}
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Отображение сводки корзины
+function displayCartSummary(cartData) {
+    const container = document.getElementById('cart-summary');
+    
+    if (!cartData.items || cartData.items.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-3">
+                <p class="text-muted">Нет товаров в корзине</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const hasUnavailableItems = cartData.items.some(item => !item.can_order);
+    
+    let html = `
+        <div class="mb-3">
+            <div class="d-flex justify-content-between mb-1">
+                <span>Товаров:</span>
+                <span>${cartData.total_count} шт</span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+                <span>Позиций:</span>
+                <span>${cartData.items.length}</span>
+            </div>
+            <hr>
+            <div class="d-flex justify-content-between mb-3">
+                <span><strong>Итого:</strong></span>
+                <span><strong class="fs-5">${cartData.total_amount.toFixed(2)} ₽</strong></span>
+            </div>
+    `;
+    
+    if (hasUnavailableItems) {
+        html += `
+            <div class="alert alert-warning py-2">
+                <i class="bi bi-exclamation-triangle"></i> Некоторые товары недоступны в нужном количестве
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Обновление количества товара в корзине
+async function updateCartItemQuantity(productId, newQuantity) {
+    newQuantity = parseInt(newQuantity);
+    
+    if (isNaN(newQuantity) || newQuantity < 1) {
+        return;
+    }
+    
+    try {
+        await callApi('update_cart_item', {
+            product_id: productId,
+            quantity: newQuantity
+        });
+        
+        loadCartPage();
+        updateCartBadge();
+        
+    } catch (error) {
+        showToast('Ошибка при обновлении количества: ' + error.message, 'danger');
+    }
+}
+
+// Удалить товар из корзины
+async function removeFromCart(productId, productName) {
+    if (!confirm(`Удалить "${productName}" из корзины?`)) {
+        return;
+    }
+    
+    try {
+        await callApi('remove_from_cart', { product_id: productId });
+        showToast('Товар удален из корзины', 'success');
+        loadCartPage();
+        updateCartBadge();
+        
+    } catch (error) {
+        showToast('Ошибка при удалении из корзины: ' + error.message, 'danger');
+    }
+}
+
+// Очистить корзину
+async function clearCart() {
+    if (!confirm('Очистить всю корзину?')) {
+        return;
+    }
+    
+    try {
+        await callApi('clear_cart');
+        showToast('Корзина очищена', 'success');
+        loadCartPage();
+        updateCartBadge();
+        
+    } catch (error) {
+        showToast('Ошибка при очистке корзины: ' + error.message, 'danger');
+    }
+}
+
+// Создание заказа из корзины
+async function createOrderFromCart() {
+    const notes = document.getElementById('order-notes').value.trim();
+    
+    try {
+        await createOrder(notes);
+    } catch (error) {
+        // Ошибка уже обработана в createOrder
+    }
+}
+
+// Инициализация
+$(document).ready(function() {
+    loadCartPage();
+});
+</script>
+{% endblock %}

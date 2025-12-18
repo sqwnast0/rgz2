@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Товары - Склад</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h2>Товары на складе</h2>
+            </div>
+            <div class="nav-links">
+                <a href="{{ url_for('dashboard') }}" class="nav-link">Главная</a>
+                <a href="{{ url_for('products_page') }}" class="nav-link">Товары</a>
+                <a href="{{ url_for('add_product_page') }}" class="nav-link">Добавить товар</a>
+                <a href="{{ url_for('cart_page') }}" class="nav-link">Корзина</a>
+                <a href="{{ url_for('orders_page') }}" class="nav-link">Заказы</a>
+                <a href="{{ url_for('logout') }}" class="nav-link">Выйти</a>
+            </div>
+        </nav>
+
+        <div class="section">
+            <h3 class="section-title">Фильтры</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <select id="category-filter" class="form-control" style="width: 200px;">
+                    <option value="all">Все категории</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="text" id="search-input" class="form-control" placeholder="Поиск товаров...">
+                <button onclick="searchProducts()" class="btn">Найти</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3 class="section-title">Список товаров</h3>
+            <div class="table-container">
+                <table id="products-table">
+                    <thead>
+                        <tr>
+                            <th>Артикул</th>
+                            <th>Название</th>
+                            <th>Категория</th>
+                            <th>Количество</th>
+                            <th>Цена</th>
+                            <th>Бренд</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="products-body">
+                        <!-- Товары будут загружены через JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="pagination" id="pagination">
+                <!-- Пагинация будет добавлена через JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        let currentPage = 1;
+        const itemsPerPage = 10;
+        
+        async function loadProducts(page = 1, categoryId = null, search = '') {
+            const params = {
+                page: page,
+                per_page: itemsPerPage
+            };
+            
+            if (categoryId && categoryId !== 'all') {
+                params.category_id = parseInt(categoryId);
+            }
+            
+            if (search) {
+                params.search = search;
+            }
+            
+            try {
+                const response = await fetch('/api', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'get_products',
+                        params: params,
+                        id: 1
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.result) {
+                    displayProducts(result.result.products);
+                    displayPagination(result.result);
+                    currentPage = page;
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки товаров:', error);
+            }
+        }
+        
+        function displayProducts(products) {
+            const tbody = document.getElementById('products-body');
+            tbody.innerHTML = '';
+            
+            if (products.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Товары не найдены</td></tr>';
+                return;
+            }
+            
+            products.forEach(product => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${product.sku}</td>
+                    <td>${product.name}</td>
+                    <td>${product.category_name || 'Без категории'}</td>
+                    <td class="${product.quantity <= 5 ? 'quantity-low' : 'quantity-ok'}">
+                        ${product.quantity}
+                    </td>
+                    <td>${product.price.toFixed(2)} ₽</td>
+                    <td>${product.brand || '-'}</td>
+                    <td>
+                        <button class="btn-sm btn-primary" onclick="addToCart(${product.id})">
+                            В корзину
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        function displayPagination(data) {
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+            
+            if (data.pages <= 1) return;
+            
+            for (let i = 1; i <= Math.min(data.pages, 10); i++) {
+                const link = document.createElement('a');
+                link.href = '#';
+                link.className = `page-link ${i === data.current_page ? 'active' : ''}`;
+                link.textContent = i;
+                link.onclick = (e) => {
+                    e.preventDefault();
+                    loadProducts(i);
+                };
+                pagination.appendChild(link);
+            }
+            
+            if (data.has_next) {
+                const nextLink = document.createElement('a');
+                nextLink.href = '#';
+                nextLink.className = 'page-link';
+                nextLink.textContent = '→';
+                nextLink.onclick = (e) => {
+                    e.preventDefault();
+                    loadProducts(data.current_page + 1);
+                };
+                pagination.appendChild(nextLink);
+            }
+        }
+        
+        async function addToCart(productId) {
+            try {
+                const response = await fetch('/api', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'add_to_cart',
+                        params: {product_id: productId},
+                        id: 1
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.result && result.result.success) {
+                    alert('Товар добавлен в корзину!');
+                } else if (result.error) {
+                    alert('Ошибка: ' + result.error.message);
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Ошибка добавления товара');
+            }
+        }
+        
+        function searchProducts() {
+            const searchInput = document.getElementById('search-input');
+            const categoryFilter = document.getElementById('category-filter');
+            
+            loadProducts(1, categoryFilter.value, searchInput.value);
+        }
+        
+        // Загружаем товары при загрузке страницы
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProducts();
+            
+            // Обработка фильтра по категориям
+            document.getElementById('category-filter').addEventListener('change', function() {
+                const searchInput = document.getElementById('search-input');
+                loadProducts(1, this.value, searchInput.value);
+            });
+        });
+    </script>
+</body>
+</html>

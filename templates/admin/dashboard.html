@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Админ-панель - Склад бытовой техники{% endblock %}
+
+{% block page_title %}Панель администратора{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-primary">
+        <i class="bi bi-people"></i> Пользователи
+    </a>
+    <a href="{{ url_for('admin.export_products') }}" class="btn btn-outline-success">
+        <i class="bi bi-download"></i> Экспорт товаров
+    </a>
+    <a href="{{ url_for('admin.database_backup') }}" class="btn btn-outline-warning">
+        <i class="bi bi-database"></i> Резервная копия
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Статистика -->
+    <div class="col-md-3 mb-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Пользователи</h6>
+                        <h2 class="mb-0">{{ total_users }}</h2>
+                        <small>Активных: {{ active_users }}</small>
+                    </div>
+                    <i class="bi bi-people display-6 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Товары</h6>
+                        <h2 class="mb-0">{{ total_products }}</h2>
+                        <small>Нет в наличии: {{ out_of_stock }}</small>
+                    </div>
+                    <i class="bi bi-box-seam display-6 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Заказы</h6>
+                        <h2 class="mb-0">{{ total_orders }}</h2>
+                        <small>За 7 дней: {{ recent_orders }}</small>
+                    </div>
+                    <i class="bi bi-receipt display-6 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Админ</h6>
+                        <h2 class="mb-0">{{ current_user.username }}</h2>
+                        <small>Роль: Администратор</small>
+                    </div>
+                    <i class="bi bi-shield-check display-6 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Последние пользователи -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-person-plus"></i> Последние пользователи</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Логин</th>
+                                <th>Имя</th>
+                                <th>Роль</th>
+                                <th>Статус</th>
+                                <th>Дата регистрации</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in recent_users %}
+                            <tr>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.full_name or '-' }}</td>
+                                <td>
+                                    {% if user.role == 'admin' %}
+                                    <span class="badge bg-danger">Админ</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Кладовщик</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.is_active %}
+                                    <span class="badge bg-success">Активен</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Неактивен</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.created_at.strftime('%d.%m.%Y') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-2">
+                    <a href="{{ url_for('admin.manage_users') }}" class="btn btn-sm btn-outline-primary">
+                        Все пользователи
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Быстрые действия -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightning"></i> Быстрые действия</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-person-plus"></i> Создать пользователя
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('admin.export_products') }}" class="btn btn-outline-success w-100">
+                            <i class="bi bi-file-earmark-spreadsheet"></i> Экспорт товаров
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('admin.database_backup') }}" class="btn btn-outline-warning w-100">
+                            <i class="bi bi-cloud-arrow-down"></i> Резервная копия
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('admin.view_logs') }}" class="btn btn-outline-info w-100">
+                            <i class="bi bi-journal-text"></i> Просмотр логов
+                        </a>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Форма быстрого создания пользователя -->
+                <form method="POST" action="{{ url_for('admin.create_user') }}">
+                    <h6 class="mb-3">Быстрое создание пользователя</h6>
+                    <div class="mb-2">
+                        <input type="text" class="form-control form-control-sm" name="username" 
+                               placeholder="Логин" required>
+                    </div>
+                    <div class="mb-2">
+                        <input type="password" class="form-control form-control-sm" name="password" 
+                               placeholder="Пароль" required>
+                    </div>
+                    <div class="mb-2">
+                        <select class="form-select form-select-sm" name="role">
+                            <option value="storekeeper">Кладовщик</option>
+                            <option value="admin">Администратор</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-plus-circle"></i> Создать
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

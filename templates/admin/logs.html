@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Логи системы - Склад бытовой техники{% endblock %}
+
+{% block page_title %}Системные логи{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Назад
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Журнал событий системы</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            Здесь отображаются системные логи. В реальной системе логи хранятся в файлах или специальной таблице БД.
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Время</th>
+                        <th>Уровень</th>
+                        <th>Модуль</th>
+                        <th>Сообщение</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ datetime.now().strftime('%d.%m.%Y %H:%M:%S') }}</td>
+                        <td><span class="badge bg-info">INFO</span></td>
+                        <td>Система</td>
+                        <td>Администратор {{ current_user.username }} вошел в панель управления</td>
+                    </tr>
+                    <tr>
+                        <td>{{ datetime.now().strftime('%d.%m.%Y %H:%M:%S') }}</td>
+                        <td><span class="badge bg-success">SUCCESS</span></td>
+                        <td>База данных</td>
+                        <td>Подключение к базе данных установлено</td>
+                    </tr>
+                    <tr>
+                        <td>{{ datetime.now().strftime('%d.%m.%Y %H:%M:%S') }}</td>
+                        <td><span class="badge bg-warning">WARNING</span></td>
+                        <td>Система</td>
+                        <td>Резервное копирование не настроено</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

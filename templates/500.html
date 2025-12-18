@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Ошибка сервера - Склад бытовой техники{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6 text-center">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body py-5">
+                <div class="display-1 text-muted mb-4">500</div>
+                <i class="bi bi-server display-1 text-danger mb-4"></i>
+                <h1 class="h2 mb-3">Внутренняя ошибка сервера</h1>
+                <p class="lead text-muted mb-4">
+                    Произошла непредвиденная ошибка. Мы уже работаем над её устранением.
+                </p>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    Попробуйте обновить страницу или вернуться позже.
+                </div>
+                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mt-4">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-primary px-4">
+                        <i class="bi bi-house-door"></i> На главную
+                    </a>
+                    <button onclick="location.reload()" class="btn btn-outline-primary px-4">
+                        <i class="bi bi-arrow-clockwise"></i> Обновить страницу
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

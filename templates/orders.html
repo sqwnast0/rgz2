@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}Накладные - Склад бытовой техники{% endblock %}
+
+{% block page_title %}Управление накладными{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    <button class="btn btn-outline-primary" onclick="loadOrders('all')">
+        Все
+    </button>
+    <button class="btn btn-outline-warning" onclick="loadOrders('unpaid')">
+        Неоплаченные
+    </button>
+    <button class="btn btn-outline-success" onclick="loadOrders('paid')">
+        Оплаченные
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Номер накладной</th>
+                        <th>Дата создания</th>
+                        <th>Товаров</th>
+                        <th>Сумма</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="orders-table-body">
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <nav id="orders-pagination" class="mt-3">
+            <!-- Пагинация будет загружена через JS -->
+        </nav>
+    </div>
+</div>
+
+<!-- Модальное окно деталей накладной -->
+<div class="modal fade" id="orderDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Детали накладной <span id="modal-order-number"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="order-details-content">
+                <!-- Детали будут загружены через JS -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentOrdersPage = 1;
+let currentOrderStatus = 'all';
+
+// Загрузка заказов
+async function loadOrders(status = 'all', page = 1) {
+    currentOrdersPage = page;
+    currentOrderStatus = status;
+    
+    try {
+        const data = await callApi('get_orders', {
+            page: page,
+            per_page: 20,
+            status: status !== 'all' ? status : undefined
+        });
+        displayOrders(data);
+        
+    } catch (error) {
+        console.error('Error loading orders:', error);
+        showToast('Ошибка при загрузке заказов', 'danger');
+    }
+}
+
+// Отображение заказов
+function displayOrders(data) {
+    const tbody = document.getElementById('orders-table-body');
+    
+    if (!data.orders || data.orders.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-5">
+                    <i class="bi bi-receipt display-1 text-muted mb-3"></i>
+                    <h4>Накладные не найдены</h4>
+                    <p class="text-muted">Создайте первую накладную из корзины</p>
+                    <a href="/cart" class="btn btn-primary">
+                        <i class="bi bi-cart"></i> Перейти в корзину
+                    </a>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    let html = '';
+    
+    data.orders.forEach(order => {
+        const itemCount = order.items ? order.items.length : 0;
+        const statusBadge = order.status === 'paid' ? 
+            '<span class="badge bg-success">Оплачен</span>' : 
+            '<span class="badge bg-warning">Не оплачен</span>';
+        
+        html += `
+            <tr>
+                <td><code>${order.order_number}</code></td>
+                <td>${new Date(order.created_at).toLocaleDateString('ru-RU')}</td>
+                <td>${itemCount} шт</td>
+                <td><strong>${order.total_amount ? order.total_amount.toFixed(2) + ' ₽' : '0.00 ₽'}</strong></td>
+                <td>${statusBadge}</td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-info" onclick="showOrderDetails(${order.id})">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        ${order.status === 'unpaid' ? `
+                        <button class="btn btn-outline-success" 
+                                onclick="markOrderAsPaid(${order.id}, '${order.order_number}')">
+                            <i class="bi bi-check-circle"></i> Оплатить
+                        </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+    updateOrdersPagination(data);
+}
+
+// Обновление пагинации заказов
+function updateOrdersPagination(data) {
+    const pagination = document.getElementById('orders-pagination');
+    
+    if (data.pages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '<ul class="pagination justify-content-center">';
+    
+    // Кнопка "Назад"
+    if (currentOrdersPage > 1) {
+        html += `
+            <li class="page-item">
+                <button class="page-link" onclick="loadOrders('${currentOrderStatus}', ${currentOrdersPage - 1})">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+            </li>
+        `;
+    }
+    
+    // Номера страниц
+    for (let i = 1; i <= data.pages; i++) {
+        if (i === 1 || i === data.pages || (i >= currentOrdersPage - 2 && i <= currentOrdersPage + 2)) {
+            html += `
+                <li class="page-item ${i === currentOrdersPage ? 'active' : ''}">
+                    <button class="page-link" onclick="loadOrders('${currentOrderStatus}', ${i})">${i}</button>
+                </li>
+            `;
+        } else if (i === currentOrdersPage - 3 || i === currentOrdersPage + 3) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+    
+    // Кнопка "Вперед"
+    if (currentOrdersPage < data.pages) {
+        html += `
+            <li class="page-item">
+                <button class="page-link" onclick="loadOrders('${currentOrderStatus}', ${currentOrdersPage + 1})">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </li>
+        `;
+    }
+    
+    html += '</ul>';
+    pagination.innerHTML = html;
+}
+
+// Показать детали заказа
+async function showOrderDetails(orderId) {
+    try {
+        const data = await callApi('get_order', { order_id: orderId });
+        displayOrderDetails(data.order);
+        
+        document.getElementById('modal-order-number').textContent = data.order.order_number;
+        const modal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Error loading order details:', error);
+        showToast('Ошибка при загрузке деталей заказа', 'danger');
+    }
+}
+
+// Отображение деталей заказа
+function displayOrderDetails(order) {
+    const container = document.getElementById('order-details-content');
+    
+    let html = `
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h6>Информация о накладной</h6>
+                <table class="table table-sm">
+                    <tr>
+                        <th>Номер:</th>
+                        <td><code>${order.order_number}</code></td>
+                    </tr>
+                    <tr>
+                        <th>Дата создания:</th>
+                        <td>${new Date(order.created_at).toLocaleString('ru-RU')}</td>
+                    </tr>
+                    <tr>
+                        <th>Статус:</th>
+                        <td>${order.status === 'paid' ? '<span class="badge bg-success">Оплачен</span>' : '<span class="badge bg-warning">Не оплачен</span>'}</td>
+                    </tr>
+                    <tr>
+                        <th>Общая сумма:</th>
+                        <td><strong>${order.total_amount ? order.total_amount.toFixed(2) + ' ₽' : '0.00 ₽'}</strong></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <h6>Товары в накладной</h6>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Артикул</th>
+                        <th>Название</th>
+                        <th>Количество</th>
+                        <th>Цена за шт.</th>
+                        <th>Сумма</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    order.items.forEach(item => {
+        html += `
+            <tr>
+                <td><code>${item.article}</code></td>
+                <td>${item.product_name}</td>
+                <td>${item.quantity}</td>
+                <td>${item.unit_price.toFixed(2)} ₽</td>
+                <td>${item.subtotal.toFixed(2)} ₽</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4" class="text-end"><strong>Итого:</strong></td>
+                        <td><strong>${order.total_amount ? order.total_amount.toFixed(2) : '0.00'} ₽</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        ${order.notes ? `
+        <div class="mt-3">
+            <h6>Примечание:</h6>
+            <div class="alert alert-info">${order.notes}</div>
+        </div>
+        ` : ''}
+    `;
+    
+    container.innerHTML = html;
+}
+
+// Инициализация
+$(document).ready(function() {
+    loadOrders('all', 1);
+});
+</script>
+{% endblock %}

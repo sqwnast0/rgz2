@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в систему</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <h1 class="login-title">Склад бытовой техники</h1>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="form-group">
+                    <input type="text" name="username" class="form-control" 
+                           placeholder="Имя пользователя" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password" class="form-control" 
+                           placeholder="Пароль" required>
+                </div>
+                <button type="submit" class="btn">Войти</button>
+            </form>
+            
+            <div style="margin-top: 20px; text-align: center; color: #666;">
+                <p>Тестовые пользователи:</p>
+                <p>admin / admin123</p>
+                <p>warehouse / warehouse123</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

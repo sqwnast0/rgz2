@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Склад бытовой техники{% endblock %}</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Навигация -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                <i class="bi bi-house-gear"></i> Склад Техники
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                {% if current_user.is_authenticated %}
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" 
+                           href="{{ url_for('dashboard') }}">
+                            <i class="bi bi-speedometer2"></i> Дашборд
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'products_page' %}active{% endif %}" 
+                           href="{{ url_for('products_page') }}">
+                            <i class="bi bi-box-seam"></i> Товары
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'cart_page' %}active{% endif %}" 
+                           href="{{ url_for('cart_page') }}">
+                            <i class="bi bi-cart3"></i> Корзина
+                            <span id="cart-badge" class="badge bg-danger" style="display: none;">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'orders_page' %}active{% endif %}" 
+                           href="{{ url_for('orders_page') }}">
+                            <i class="bi bi-receipt"></i> Накладные
+                        </a>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" 
+                           data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i> {{ current_user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><span class="dropdown-item-text">Кладовщик</span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('logout') }}">
+                                    <i class="bi bi-box-arrow-right"></i> Выйти
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <main class="container my-4">
+        <!-- Сообщения -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Заголовок страницы -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0">{% block page_title %}{% endblock %}</h1>
+            <div>{% block page_actions %}{% endblock %}</div>
+        </div>
+        
+        <!-- Содержимое страницы -->
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Футер -->
+    <footer class="bg-light text-center text-muted py-3 mt-5 border-top">
+        <div class="container">
+            <small>
+                &copy; 2024 Склад бытовой техники. Панель кладовщика.
+                <span class="d-block d-md-inline">Версия 1.0</span>
+            </small>
+        </div>
+    </footer>
+
+    <!-- Модальные окна (общие для всех страниц) -->
+    
+    <!-- Модальное окно добавления товара -->
+    <div class="modal fade" id="addProductModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить новый товар</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-product-form">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="product-article" class="form-label">Артикул *</label>
+                                <input type="text" class="form-control" id="product-article" required>
+                                <div class="form-text">Уникальный идентификатор товара</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="product-name" class="form-label">Название *</label>
+                                <input type="text" class="form-control" id="product-name" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="product-quantity" class="form-label">Количество</label>
+                                <input type="number" class="form-control" id="product-quantity" value="1" min="0">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="product-price" class="form-label">Цена (руб.)</label>
+                                <input type="number" class="form-control" id="product-price" step="0.01" min="0" value="0">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="product-category" class="form-label">Категория</label>
+                                <select class="form-select" id="product-category">
+                                    <option value="">Без категории</option>
+                                    <!-- Категории будут загружены через JS -->
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="product-manufacturer" class="form-label">Производитель</label>
+                                <input type="text" class="form-control" id="product-manufacturer">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="product-model" class="form-label">Модель</label>
+                                <input type="text" class="form-control" id="product-model">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="product-description" class="form-label">Описание</label>
+                            <textarea class="form-control" id="product-description" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="save-product-btn">
+                        <i class="bi bi-save"></i> Сохранить товар
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно добавления в корзину -->
+    <div class="modal fade" id="addToCartModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить в корзину</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="mb-3">
+                            <label class="form-label">Товар</label>
+                            <p class="form-control-plaintext" id="cart-product-name"></p>
+                        </div>
+                        <div class="mb-3">
+                            <label for="cart-quantity" class="form-label">Количество</label>
+                            <div class="d-flex align-items-center">
+                                <input type="number" class="form-control me-3" id="cart-quantity" 
+                                       value="1" min="1" style="width: 100px;">
+                                <span class="text-muted">Доступно: <span id="available-quantity">0</span> шт</span>
+                            </div>
+                            <input type="hidden" id="cart-product-id">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="confirm-add-to-cart">
+                        <i class="bi bi-cart-plus"></i> Добавить в корзину
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно добавления количества существующему товару -->
+    <div class="modal fade" id="addQuantityModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить количество</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="mb-3">
+                            <label class="form-label">Товар</label>
+                            <p class="form-control-plaintext" id="addProductName"></p>
+                        </div>
+                        <div class="mb-3">
+                            <label for="addQuantity" class="form-label">Добавить количество</label>
+                            <input type="number" class="form-control" id="addQuantity" value="10" min="1">
+                            <input type="hidden" id="addProductId">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="addQuantityToProduct()">
+                        <i class="bi bi-plus-circle"></i> Добавить
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения удаления -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Подтверждение удаления</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="delete-message">Вы уверены, что хотите удалить этот товар?</p>
+                    <input type="hidden" id="delete-product-id">
+                    <input type="hidden" id="delete-product-name">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmDelete()">
+                        <i class="bi bi-trash"></i> Удалить
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно деталей заказа -->
+    <div class="modal fade" id="orderDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Детали накладной <span id="modal-order-number"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="order-details-content">
+                    <!-- Детали будут загружены через JS -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    <button type="button" class="btn btn-primary" onclick="printOrder()">
+                        <i class="bi bi-printer"></i> Печать
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Контейнер для тостов (уведомлений) -->
+    <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+
+    <!-- Оверлей загрузки -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery (для удобства работы с AJAX) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Глобальные переменные -->
+    <script>
+        const API_URL = '{{ url_for("api") }}';
+        const CURRENT_USER_ID = '{{ current_user.get_id() if current_user.is_authenticated else "" }}';
+        
+        // Глобальные функции для использования в шаблонах
+        window.showAddProductModal = function() {
+            // Очищаем форму
+            document.getElementById('product-article').value = '';
+            document.getElementById('product-name').value = '';
+            document.getElementById('product-quantity').value = '1';
+            document.getElementById('product-price').value = '';
+            document.getElementById('product-manufacturer').value = '';
+            document.getElementById('product-model').value = '';
+            document.getElementById('product-description').value = '';
+            document.getElementById('product-category').value = '';
+            
+            // Восстанавливаем заголовок и обработчик
+            document.querySelector('#addProductModal .modal-title').textContent = 'Добавить новый товар';
+            document.getElementById('save-product-btn').onclick = saveProduct;
+            
+            const modal = new bootstrap.Modal(document.getElementById('addProductModal'));
+            modal.show();
+        };
+        
+        window.showDeleteModal = function(productId, productName) {
+            document.getElementById('delete-product-id').value = productId;
+            document.getElementById('delete-product-name').value = productName;
+            document.getElementById('delete-message').textContent = 
+                `Вы уверены, что хотите удалить товар "${productName}"? Это действие нельзя отменить.`;
+            
+            const modal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+            modal.show();
+        };
+        
+        window.confirmDelete = function() {
+            const productId = document.getElementById('delete-product-id').value;
+            const productName = document.getElementById('delete-product-name').value;
+            
+            deleteProduct(parseInt(productId), productName);
+            bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal')).hide();
+        };
+        
+        window.addQuantityToProduct = function() {
+            const productId = parseInt(document.getElementById('addProductId').value);
+            const quantity = parseInt(document.getElementById('addQuantity').value);
+            const productName = document.getElementById('addProductName').textContent;
+            
+            if (quantity <= 0) {
+                showToast('Введите корректное количество', 'warning');
+                return;
+            }
+            
+            // Здесь будет вызов API для добавления количества
+            callApi('add_or_update_product', {
+                product_id: productId,
+                quantity: quantity
+            })
+            .then(() => {
+                showToast(`Добавлено ${quantity} шт. к товару "${productName}"`, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('addQuantityModal')).hide();
+                
+                // Обновляем страницу если нужно
+                if (typeof loadProductsPage === 'function') {
+                    loadProductsPage();
+                }
+            })
+            .catch(error => {
+                showToast('Ошибка при добавлении количества: ' + error.message, 'danger');
+            });
+        };
+        
+        window.printOrder = function() {
+            window.print();
+        };
+    </script>
+    
+    <!-- Основной JS -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

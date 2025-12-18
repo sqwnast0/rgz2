@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Добавить товар - Склад</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h2>Добавление товара</h2>
+            </div>
+            <div class="nav-links">
+                <a href="{{ url_for('dashboard') }}" class="nav-link">Главная</a>
+                <a href="{{ url_for('products_page') }}" class="nav-link">Товары</a>
+                <a href="{{ url_for('add_product_page') }}" class="nav-link">Добавить товар</a>
+                <a href="{{ url_for('cart_page') }}" class="nav-link">Корзина</a>
+                <a href="{{ url_for('orders_page') }}" class="nav-link">Заказы</a>
+                <a href="{{ url_for('logout') }}" class="nav-link">Выйти</a>
+            </div>
+        </nav>
+
+        <div class="section">
+            <h3 class="section-title">Форма добавления товара</h3>
+            
+            <div id="message" style="display: none; padding: 10px; margin-bottom: 20px; border-radius: 5px;"></div>
+            
+            <form id="add-product-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Артикул (SKU)*</label>
+                        <input type="text" id="sku" class="form-control" required 
+                               placeholder="Например: FR001">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Название товара*</label>
+                        <input type="text" id="name" class="form-control" required 
+                               placeholder="Например: Холодильник Samsung">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Категория*</label>
+                        <select id="category_id" class="form-control" required>
+                            <option value="">Выберите категорию</option>
+                            {% for category in categories %}
+                            <option value="{{ category.id }}">{{ category.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Цена (₽)*</label>
+                        <input type="number" id="price" class="form-control" required 
+                               min="0" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Количество*</label>
+                        <input type="number" id="quantity" class="form-control" required 
+                               min="1" value="1" placeholder="1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Бренд</label>
+                        <input type="text" id="brand" class="form-control" 
+                               placeholder="Например: Samsung">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Модель</label>
+                        <input type="text" id="model" class="form-control" 
+                               placeholder="Например: RB33J3000SA">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Гарантия (месяцев)</label>
+                        <input type="number" id="warranty_months" class="form-control" 
+                               min="0" value="12" placeholder="12">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Описание</label>
+                    <textarea id="description" class="form-control" rows="4" 
+                              placeholder="Описание товара..."></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-success" style="flex: 1;">
+                        Добавить товар
+                    </button>
+                    <button type="button" class="btn" style="flex: 1;" 
+                            onclick="window.location.href='{{ url_for('products_page') }}'">
+                        Отмена
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('add-product-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const productData = {
+                sku: document.getElementById('sku').value.trim().toUpperCase(),
+                name: document.getElementById('name').value.trim(),
+                category_id: parseInt(document.getElementById('category_id').value),
+                price: parseFloat(document.getElementById('price').value),
+                quantity: parseInt(document.getElementById('quantity').value),
+                brand: document.getElementById('brand').value.trim(),
+                model: document.getElementById('model').value.trim(),
+                warranty_months: parseInt(document.getElementById('warranty_months').value),
+                description: document.getElementById('description').value.trim()
+            };
+            
+            // Валидация
+            if (!productData.sku || !productData.name || !productData.category_id || 
+                isNaN(productData.price) || isNaN(productData.quantity)) {
+                showMessage('Заполните все обязательные поля!', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'add_product',
+                        params: productData,
+                        id: 1
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.result && result.result.success) {
+                    const action = result.result.action;
+                    const message = action === 'created' ? 
+                        'Товар успешно создан!' : 
+                        'Количество товара увеличено!';
+                    
+                    showMessage(message, 'success');
+                    
+                    // Очищаем форму для нового ввода, кроме артикула
+                    document.getElementById('name').value = '';
+                    document.getElementById('quantity').value = '1';
+                    document.getElementById('brand').value = '';
+                    document.getElementById('model').value = '';
+                    document.getElementById('description').value = '';
+                    
+                    // Фокус на поле SKU для быстрого ввода следующего товара
+                    document.getElementById('sku').focus();
+                } else if (result.error) {
+                    showMessage('Ошибка: ' + result.error.message, 'error');
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                showMessage('Ошибка сети или сервера', 'error');
+            }
+        });
+        
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.style.display = 'block';
+            messageDiv.style.background = type === 'success' ? '#d4edda' : '#f8d7da';
+            messageDiv.style.color = type === 'success' ? '#155724' : '#721c24';
+            messageDiv.style.border = `1px solid ${type === 'success' ? '#c3e6cb' : '#f5c6cb'}`;
+            
+            // Автоматическое скрытие через 5 секунд
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

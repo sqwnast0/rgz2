@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Тестирование API</h1>
+    
+    <div class="test-section">
+        <h3>1. Проверка здоровья API</h3>
+        <button onclick="testHealth()">Тест /api/health</button>
+        <div id="health-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. Тест JSON-RPC запроса</h3>
+        <button onclick="testJSONRPC()">Отправить JSON-RPC запрос</button>
+        <div id="jsonrpc-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. Тест старого формата (action)</h3>
+        <button onclick="testLegacyFormat()">Отправить старый формат</button>
+        <div id="legacy-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>4. Получить товары</h3>
+        <button onclick="getProducts()">Получить список товаров</button>
+        <div id="products-result" class="result"></div>
+    </div>
+    
+    <script>
+        function displayResult(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = JSON.stringify(data, null, 2);
+            element.className = `result ${isError ? 'error' : 'success'}`;
+        }
+        
+        async function testHealth() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                displayResult('health-result', data);
+            } catch (error) {
+                displayResult('health-result', {error: error.message}, true);
+            }
+        }
+        
+        async function testJSONRPC() {
+            try {
+                const response = await fetch('/api', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'get_products',
+                        params: {},
+                        id: 1
+                    })
+                });
+                const data = await response.json();
+                displayResult('jsonrpc-result', data, !response.ok);
+            } catch (error) {
+                displayResult('jsonrpc-result', {error: error.message}, true);
+            }
+        }
+        
+        async function testLegacyFormat() {
+            try {
+                const response = await fetch('/api', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        action: 'get_products',
+                        category_id: null
+                    })
+                });
+                const data = await response.json();
+                displayResult('legacy-result', data, !response.ok);
+            } catch (error) {
+                displayResult('legacy-result', {error: error.message}, true);
+            }
+        }
+        
+        async function getProducts() {
+            try {
+                const response = await fetch('/api', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'get_products',
+                        params: {},
+                        id: Date.now()
+                    })
+                });
+                const data = await response.json();
+                displayResult('products-result', data, !response.ok);
+            } catch (error) {
+                displayResult('products-result', {error: error.message}, true);
+            }
+        }
+        
+        // Автозапуск теста здоровья при загрузке
+        window.onload = testHealth;
+    </script>
+</body>
+</html>
