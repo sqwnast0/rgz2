@@ -800,7 +800,7 @@ def dashboard():
                                         {p.quantity} шт.
                                     </span>
                                 </td>
-                                <td><strong>{p.price:.2f} ₽</strong></td>
+                                <td><strong>{p.price:.2f} &ruble;</strong></td>
                                 <td>
                                     <button class="btn btn-primary btn-sm" onclick="addToCart({p.id})">
                                         <i class="fas fa-cart-plus"></i> В корзину
